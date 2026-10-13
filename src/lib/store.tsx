@@ -22,6 +22,7 @@ import type {
   GuideRequest,
   Group,
   GroupJoinRequest,
+  Invitation,
   Message,
   Review,
   Trip,
@@ -38,6 +39,7 @@ type Store = AppState & {
   login: (identifier: string, password: string) => string | null;
   loginAsGuide: (identifier: string, password: string) => string | null;
   logout: () => void;
+  switchAccount: (userIdOrGuideId: string, role?: "traveler" | "guide") => void;
   signup: (input: Omit<User, "id" | "verificationStatus" | "previousTrips" | "completedTripIds" | "rating" | "completedTripCount" | "blockedUserIds" | "savedTripIds" | "reportedUserIds" | "bio">) => string | null;
   signupAsGuide: (input: Omit<Guide, "id" | "rating" | "verifiedTrips" | "answers">) => string | null;
   verifyCurrentUser: () => void;
@@ -48,6 +50,7 @@ type Store = AppState & {
     itinerary?: Trip["itinerary"];
     rules?: string[];
     initialMembers?: string[];
+    inviteUserIds?: string[];
   }) => { trip: Trip; group: Group };
   toggleGroupRecruiting: (groupId: string, state?: boolean) => void;
   inviteTraveler: (groupId: string, userId: string) => { success: boolean; message: string };
@@ -69,7 +72,9 @@ type Store = AppState & {
   respondGroupJoinRequest: (requestId: string, accept: boolean) => { success: boolean; message: string };
   removeMember: (groupId: string, userId: string) => void;
   updateTrip: (tripId: string, patch: Partial<Trip>) => void;
-  sendMessage: (groupId: string, message: string, type?: Message["type"]) => void;
+  sendMessage: (groupId: string, message: string, type?: Message["type"], recipientId?: string) => void;
+  getDmConversationId: (userA: string, userB: string) => string;
+  markMessagesAsRead: (conversationId: string) => void;
   requestGuide: (
     guideId: string,
     tripDetails?: {
@@ -97,14 +102,18 @@ type Store = AppState & {
   activePlan: TripPlan | null;
   setActivePlanId: (id: string | null) => void;
   createTripPlan: (plan: Omit<TripPlan, "id">) => TripPlan;
+  updateTripPlan: (planId: string, patch: Partial<TripPlan>) => void;
   addPlannerActivity: (planId: string, activity: Omit<TripPlan["activities"][0], "id">) => void;
   updatePlannerActivity: (planId: string, activityId: string, patch: Partial<TripPlan["activities"][0]>) => void;
   deletePlannerActivity: (planId: string, activityId: string) => void;
   addPlannerBooking: (planId: string, booking: Omit<TripPlan["bookings"][0], "id">) => void;
+  updatePlannerBooking: (planId: string, bookingId: string, patch: Partial<TripPlan["bookings"][0]>) => void;
   deletePlannerBooking: (planId: string, bookingId: string) => void;
   addPlannerLocation: (planId: string, location: Omit<TripPlan["locations"][0], "id">) => void;
+  updatePlannerLocation: (planId: string, locationId: string, patch: Partial<TripPlan["locations"][0]>) => void;
   deletePlannerLocation: (planId: string, locationId: string) => void;
   addPlannerExpense: (planId: string, expense: Omit<TripPlan["expenses"][0], "id">) => void;
+  updatePlannerExpense: (planId: string, expenseId: string, patch: Partial<TripPlan["expenses"][0]>) => void;
   deletePlannerExpense: (planId: string, expenseId: string) => void;
   generateDayPlan: (planId: string, prompt: string) => void;
 };
@@ -159,17 +168,47 @@ function loadState(): AppState {
       }
     }
 
+    // Ensure seed trip plans and user-created trip plans are preserved
+    const savedTripPlans = Array.isArray(parsed.tripPlans) ? parsed.tripPlans : [];
+    const existingPlanIds = new Set(savedTripPlans.map((p) => p.id));
+    const mergedTripPlans = [...savedTripPlans];
+    for (const sp of seed.tripPlans || []) {
+      if (!existingPlanIds.has(sp.id)) {
+        mergedTripPlans.push(sp);
+      }
+    }
+
+    // Ensure seed invitations and user-created invitations are preserved
+    const savedInvitations = Array.isArray(parsed.invitations) ? parsed.invitations : [];
+    const existingInvIds = new Set(savedInvitations.map((i) => i.id));
+    const mergedInvitations = [...savedInvitations];
+    for (const si of seed.invitations || []) {
+      if (!existingInvIds.has(si.id)) {
+        mergedInvitations.push(si);
+      }
+    }
+
+    // Ensure seed messages and user-created messages are preserved
+    const savedMessages = Array.isArray(parsed.messages) ? parsed.messages : [];
+    const existingMsgIds = new Set(savedMessages.map((m) => m.id));
+    const mergedMessages = [...savedMessages];
+    for (const sm of seed.messages || []) {
+      if (!existingMsgIds.has(sm.id)) {
+        mergedMessages.push(sm);
+      }
+    }
+
     return {
       users: mergedUsers,
       trips: mergedTrips,
       groups: mergedGroups,
       reviews: Array.isArray(parsed.reviews) && parsed.reviews.length ? parsed.reviews : seed.reviews,
       guides: mergedGuides,
-      messages: Array.isArray(parsed.messages) && parsed.messages.length ? parsed.messages : seed.messages,
-      invitations: Array.isArray(parsed.invitations) && parsed.invitations.length ? parsed.invitations : seed.invitations,
+      messages: mergedMessages,
+      invitations: mergedInvitations,
       guideRequests: Array.isArray(parsed.guideRequests) && parsed.guideRequests.length ? parsed.guideRequests : seed.guideRequests,
       groupJoinRequests: Array.isArray(parsed.groupJoinRequests) && parsed.groupJoinRequests.length ? parsed.groupJoinRequests : seed.groupJoinRequests,
-      tripPlans: Array.isArray(parsed.tripPlans) ? parsed.tripPlans : [],
+      tripPlans: mergedTripPlans,
       currentUserId: parsed.currentUserId !== undefined ? parsed.currentUserId : seed.currentUserId,
       currentGuideId: parsed.currentGuideId ?? null,
       userRole: parsed.userRole ?? "traveler",
@@ -252,6 +291,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       userRole: null,
     }));
   }, []);
+
+  const switchAccount = useCallback((userIdOrGuideId: string, role?: "traveler" | "guide") => {
+    const user = state.users.find((u) => u.id === userIdOrGuideId);
+    const guide = state.guides.find((g) => g.id === userIdOrGuideId);
+    if (guide && (!user || role === "guide")) {
+      setState((s) => ({
+        ...s,
+        currentUserId: null,
+        currentGuideId: guide.id,
+        userRole: "guide",
+      }));
+    } else if (user) {
+      setState((s) => ({
+        ...s,
+        currentUserId: user.id,
+        currentGuideId: null,
+        userRole: "traveler",
+      }));
+    }
+  }, [state.users, state.guides]);
 
   const signup = useCallback((input: Parameters<Store["signup"]>[0]) => {
     const exists = state.users.some(
@@ -342,10 +401,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateProfile = useCallback((patch: Partial<User>) => {
-    setState((s) => ({
-      ...s,
-      users: s.users.map((u) => (u.id === s.currentUserId ? { ...u, ...patch, id: u.id } : u)),
-    }));
+    setState((s) => {
+      if (s.currentGuideId && !s.currentUserId) {
+        return {
+          ...s,
+          guides: s.guides.map((g) =>
+            g.id === s.currentGuideId
+              ? {
+                  ...g,
+                  photo: patch.profilePhoto !== undefined ? patch.profilePhoto : g.photo,
+                  bio: patch.bio !== undefined ? patch.bio : g.bio,
+                }
+              : g
+          ),
+        };
+      }
+      return {
+        ...s,
+        users: s.users.map((u) => (u.id === s.currentUserId ? { ...u, ...patch, id: u.id } : u)),
+      };
+    });
   }, []);
 
   const saveTrip = useCallback((tripId: string) => {
@@ -365,6 +440,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const creatorId = state.currentUserId || "u_guest";
     const initialMembers = input.initialMembers || [creatorId];
     const memberIds = [...new Set([creatorId, ...initialMembers])];
+    const inviteUserIds = input.inviteUserIds || [];
 
     const trip: Trip = {
       itinerary: input.itinerary ?? [
@@ -387,13 +463,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tripId: trip.id,
       creatorId,
       memberIds,
-      pendingInviteIds: [],
+      pendingInviteIds: [...new Set(inviteUserIds)],
       joinRequestIds: [],
       recruiting: !isFull, // Auto ON if not full!
       groupJoinRequests: [],
     };
 
-    setState((s) => ({ ...s, trips: [...s.trips, trip], groups: [...s.groups, group] }));
+    const newInvites: Invitation[] = inviteUserIds.map((uId) => ({
+      id: uid("inv"),
+      groupId: group.id,
+      tripId: trip.id,
+      senderId: creatorId,
+      fromUserId: creatorId,
+      invitedUserId: uId,
+      toUserId: uId,
+      status: "pending" as const,
+      createdAt: new Date().toISOString(),
+    }));
+
+    setState((s) => ({
+      ...s,
+      trips: [...s.trips, trip],
+      groups: [...s.groups, group],
+      invitations: [...(s.invitations || []), ...newInvites],
+    }));
     return { trip, group };
   }, [state.currentUserId]);
 
@@ -749,18 +842,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const sendMessage = useCallback((groupId: string, message: string, type: Message["type"] = "text") => {
-    if (!message.trim()) return;
-    const sender = state.currentUserId || state.currentGuideId || "guest";
-    const msg: Message = {
-      id: uid("m"),
-      senderId: type === "system" ? "system" : sender,
-      groupId,
-      message: message.trim(),
-      timestamp: new Date().toISOString(),
-      type,
-    };
-    setState((s) => ({ ...s, messages: [...s.messages, msg] }));
+  const getDmConversationId = useCallback((userA: string, userB: string) => {
+    return `dm_${[userA, userB].sort().join("_")}`;
+  }, []);
+
+  const sendMessage = useCallback(
+    (groupId: string, message: string, type: Message["type"] = "text", recipientId?: string) => {
+      if (!message.trim()) return;
+      const sender = state.currentUserId || state.currentGuideId || "guest";
+      const msg: Message = {
+        id: uid("m"),
+        senderId: type === "system" ? "system" : sender,
+        groupId,
+        conversationId: groupId,
+        recipientId,
+        message: message.trim(),
+        timestamp: new Date().toISOString(),
+        type,
+        readBy: [sender],
+      };
+      setState((s) => ({ ...s, messages: [...s.messages, msg] }));
+    },
+    [state.currentUserId, state.currentGuideId]
+  );
+
+  const markMessagesAsRead = useCallback((conversationId: string) => {
+    const actorId = state.currentUserId || state.currentGuideId;
+    if (!actorId) return;
+    setState((s) => ({
+      ...s,
+      messages: s.messages.map((m) =>
+        (m.groupId === conversationId || m.conversationId === conversationId) &&
+        (!m.readBy || !m.readBy.includes(actorId))
+          ? { ...m, readBy: [...(m.readBy || []), actorId] }
+          : m
+      ),
+    }));
   }, [state.currentUserId, state.currentGuideId]);
 
   const requestGuide = useCallback(
@@ -1028,8 +1145,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (activePlanId) {
       return state.tripPlans.find((p) => p.id === activePlanId) ?? state.tripPlans[0];
     }
+    if (state.currentUserId) {
+      const userPlan = state.tripPlans.find((p) => p.userId === state.currentUserId);
+      if (userPlan) return userPlan;
+    }
     return state.tripPlans[0];
-  }, [state.tripPlans, activePlanId]);
+  }, [state.tripPlans, activePlanId, state.currentUserId]);
 
   const createTripPlan = useCallback((input: Omit<TripPlan, "id">) => {
     const newPlan: TripPlan = { ...input, id: uid("plan") };
@@ -1039,6 +1160,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
     setActivePlanId(newPlan.id);
     return newPlan;
+  }, []);
+
+  const updateTripPlan = useCallback((planId: string, patch: Partial<TripPlan>) => {
+    setState((s) => ({
+      ...s,
+      tripPlans: (s.tripPlans || []).map((p) => (p.id === planId ? { ...p, ...patch } : p)),
+    }));
   }, []);
 
   const addPlannerActivity = useCallback((planId: string, activity: Omit<TripPlan["activities"][0], "id">) => {
@@ -1086,6 +1214,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updatePlannerBooking = useCallback((planId: string, bookingId: string, patch: Partial<TripPlan["bookings"][0]>) => {
+    setState((s) => ({
+      ...s,
+      tripPlans: (s.tripPlans || []).map((p) =>
+        p.id === planId
+          ? {
+              ...p,
+              bookings: p.bookings.map((b) => (b.id === bookingId ? { ...b, ...patch } : b)),
+            }
+          : p
+      ),
+    }));
+  }, []);
+
   const deletePlannerBooking = useCallback((planId: string, bookingId: string) => {
     setState((s) => ({
       ...s,
@@ -1104,6 +1246,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updatePlannerLocation = useCallback((planId: string, locationId: string, patch: Partial<TripPlan["locations"][0]>) => {
+    setState((s) => ({
+      ...s,
+      tripPlans: (s.tripPlans || []).map((p) =>
+        p.id === planId
+          ? {
+              ...p,
+              locations: p.locations.map((l) => (l.id === locationId ? { ...l, ...patch } : l)),
+            }
+          : p
+      ),
+    }));
+  }, []);
+
   const deletePlannerLocation = useCallback((planId: string, locId: string) => {
     setState((s) => ({
       ...s,
@@ -1118,6 +1274,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...s,
       tripPlans: (s.tripPlans || []).map((p) =>
         p.id === planId ? { ...p, expenses: [...p.expenses, { ...exp, id: uid("exp") }] } : p
+      ),
+    }));
+  }, []);
+
+  const updatePlannerExpense = useCallback((planId: string, expenseId: string, patch: Partial<TripPlan["expenses"][0]>) => {
+    setState((s) => ({
+      ...s,
+      tripPlans: (s.tripPlans || []).map((p) =>
+        p.id === planId
+          ? {
+              ...p,
+              expenses: p.expenses.map((e) => (e.id === expenseId ? { ...e, ...patch } : e)),
+            }
+          : p
       ),
     }));
   }, []);
@@ -1174,6 +1344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     login,
     loginAsGuide,
     logout,
+    switchAccount,
     signup,
     signupAsGuide,
     verifyCurrentUser,
@@ -1191,6 +1362,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeMember,
     updateTrip,
     sendMessage,
+    getDmConversationId,
+    markMessagesAsRead,
     requestGuide,
     respondGuideRequest,
     assignGuide,
@@ -1205,14 +1378,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activePlan,
     setActivePlanId,
     createTripPlan,
+    updateTripPlan,
     addPlannerActivity,
     updatePlannerActivity,
     deletePlannerActivity,
     addPlannerBooking,
+    updatePlannerBooking,
     deletePlannerBooking,
     addPlannerLocation,
+    updatePlannerLocation,
     deletePlannerLocation,
     addPlannerExpense,
+    updatePlannerExpense,
     deletePlannerExpense,
     generateDayPlan,
   };

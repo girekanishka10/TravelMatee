@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ageFromDob } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { Avatar } from "@/components/Ui";
@@ -15,6 +15,10 @@ export default function ProfilePage() {
   const [emergencyName, setEmergencyName] = useState(currentUser?.emergencyContact?.name ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(currentUser?.emergencyContact?.phone ?? "");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentUser && !currentGuide) return null;
 
@@ -23,6 +27,81 @@ export default function ProfilePage() {
   const displayLocation = isGuide ? currentGuide?.location : currentUser?.city;
   const avatarUrl = isGuide ? currentGuide?.photo : currentUser?.profilePhoto;
   const p = currentUser?.travelPersonality;
+
+  function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPhotoError(null);
+    setPhotoNotice(null);
+
+    // Validate image format
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setPhotoError("Please select a valid image format (JPG, PNG, or WebP).");
+      return;
+    }
+
+    // Validate image size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("Image size must be under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Compress and resize client-side to preserve localStorage quota
+        const maxDim = 256;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setPhotoError("Could not process photo.");
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+        // Update profile photo
+        updateProfile({ profilePhoto: compressedDataUrl });
+        setPhotoNotice("Profile photo updated successfully!");
+        setTimeout(() => setPhotoNotice(null), 3500);
+      };
+      img.onerror = () => {
+        setPhotoError("Failed to read image file.");
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      setPhotoError("Failed to read file.");
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input so the same file could be selected again if needed
+    e.target.value = "";
+  }
+
+  function handleDeletePhoto() {
+    updateProfile({ profilePhoto: "" });
+    setPhotoError(null);
+    setPhotoNotice("Profile photo removed. Restored initials avatar.");
+    setTimeout(() => setPhotoNotice(null), 3500);
+  }
 
   function handleSave() {
     if (currentUser) {
@@ -78,8 +157,57 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Edit Form */}
-      <div className="mt-6 rounded-xl border border-line bg-card p-6 space-y-3.5 text-xs">
+      <div className="mt-6 rounded-xl border border-line bg-card p-6 space-y-4 text-xs">
         <h2 className="text-sm font-semibold text-ink">Edit Details</h2>
+
+        {/* Profile Photo Upload / Change / Delete Controls */}
+        <div className="rounded-lg border border-line bg-paper p-4">
+          <label className="block text-muted font-medium mb-2">Profile Photo</label>
+          <div className="flex items-center gap-4">
+            <Avatar name={displayName || "User"} photo={avatarUrl} size="lg" />
+            <div className="flex-1 space-y-1.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoFileChange}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-primary rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+                >
+                  {avatarUrl && avatarUrl.trim().length > 0 ? "Change Photo" : "Upload Photo"}
+                </button>
+                {avatarUrl && avatarUrl.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDeletePhoto}
+                    className="btn-secondary rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Delete Photo
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted">
+                Accepts JPG, PNG, or WebP. Initials avatar is automatically restored if photo is deleted.
+              </p>
+            </div>
+          </div>
+
+          {photoError && (
+            <p className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-md">
+              {photoError}
+            </p>
+          )}
+          {photoNotice && (
+            <p className="mt-2 text-xs text-forest bg-forest/10 p-2 rounded-md font-medium">
+              ✓ {photoNotice}
+            </p>
+          )}
+        </div>
 
         <div>
           <label className="block text-muted font-medium">Bio / Introduction</label>

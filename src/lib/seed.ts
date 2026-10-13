@@ -10,6 +10,7 @@ import type {
   Message,
   Review,
   Trip,
+  TripPlan,
   User,
 } from "./types";
 
@@ -1071,7 +1072,7 @@ export function createSeedState(): AppState {
       creatorId: "u_kanishka",
       // 3 of 5 filled (Partially filled)
       memberIds: ["u_kanishka", "u_swarupa", "u_diksha"],
-      pendingInviteIds: ["u_gouri"],
+      pendingInviteIds: ["u_rushita"],
       joinRequestIds: ["req_join_1"],
       recruiting: true,
     },
@@ -1125,8 +1126,8 @@ export function createSeedState(): AppState {
       id: "inv_1",
       groupId: "group_spiti",
       senderId: "u_kanishka",
-      invitedUserId: "u_gouri",
-      toUserId: "u_gouri",
+      invitedUserId: "u_rushita",
+      toUserId: "u_rushita",
       fromUserId: "u_kanishka",
       tripId: "trip_spiti",
       status: "pending",
@@ -1400,6 +1401,199 @@ export function createSeedState(): AppState {
     },
   ];
 
+  // ---------------------------------------------------------
+  // TEST TRIP PLANS (For Trip Planner)
+  // ---------------------------------------------------------
+  const tripPlans: TripPlan[] = [
+    {
+      id: "plan_spiti",
+      tripId: "trip_spiti",
+      userId: "u_kanishka",
+      title: "Spiti Valley Expedition Plan",
+      destination: "Spiti Valley",
+      dates: "10–18 Nov 2026",
+      totalBudget: 24000,
+      activities: [
+        {
+          id: "act_s1",
+          day: 1,
+          time: "08:00",
+          title: "Chandigarh to Narkanda Drive",
+          details: "Pickup from airport, scenic mountain highway",
+          notes: "Carry motion sickness meds",
+          location: "NH-5 Highway",
+          category: "transport",
+        },
+        {
+          id: "act_s2",
+          day: 2,
+          time: "10:30",
+          title: "Kinnaur Temple & Apple Orchards",
+          details: "Explore traditional wooden architecture",
+          notes: "Wear comfortable walking shoes",
+          location: "Kalpa Viewpoint",
+          category: "sightseeing",
+        },
+        {
+          id: "act_s3",
+          day: 3,
+          time: "14:00",
+          title: "Tabo Monastery Visit",
+          details: "Ancient Buddhist monastery murals",
+          notes: "Photography prohibited in main sanctum",
+          location: "Tabo Village",
+          category: "activity",
+        },
+        {
+          id: "act_s4",
+          day: 4,
+          time: "19:00",
+          title: "Traditional Spitian Homestay Dinner",
+          details: "Fresh Thukpa, butter tea, and local specialties",
+          notes: "Warm indoor dining",
+          location: "Kaza Old Village",
+          category: "food",
+        },
+      ],
+      bookings: [
+        {
+          id: "bk_s1",
+          type: "flight",
+          provider: "IndiGo (6E-204)",
+          dateTime: "10 Nov, 06:30 AM",
+          referenceNumber: "6E-204-DEL",
+          notes: "Delhi T3 to Chandigarh departure",
+        },
+        {
+          id: "bk_s2",
+          type: "hotel",
+          provider: "Spiti Valley Heritage Homestay",
+          dateTime: "12 Nov, 12:00 PM",
+          referenceNumber: "HTL-SP-441",
+          notes: "Heated rooms, breakfast included",
+        },
+      ],
+      locations: [
+        {
+          id: "loc_s1",
+          name: "Chandigarh Transit Point",
+          order: 1,
+          travelTimeFromPrev: "Start",
+          routeInfo: "Airport assembly point",
+        },
+        {
+          id: "loc_s2",
+          name: "Narkanda Foothills",
+          order: 2,
+          travelTimeFromPrev: "4 hrs",
+          routeInfo: "Via NH-5 scenic bypass",
+        },
+        {
+          id: "loc_s3",
+          name: "Kaza Central Valley",
+          order: 3,
+          travelTimeFromPrev: "6.5 hrs",
+          routeInfo: "High pass mountain road",
+        },
+      ],
+      expenses: [
+        {
+          id: "exp_s1",
+          title: "Shared Innova Cab Advance",
+          category: "Transport",
+          amount: 6500,
+          date: "2026-10-01",
+        },
+        {
+          id: "exp_s2",
+          title: "Homestay Deposit (Kaza)",
+          category: "Stay",
+          amount: 4800,
+          date: "2026-10-02",
+        },
+        {
+          id: "exp_s3",
+          title: "Monastery Heritage Pass",
+          category: "Activities",
+          amount: 800,
+          date: "2026-10-03",
+        },
+      ],
+    },
+    {
+      id: "plan_manali",
+      userId: "u_gouri",
+      title: "Manali Mountain Retreat Plan",
+      destination: "Manali",
+      dates: "15–20 Nov 2026",
+      totalBudget: 20000,
+      activities: [
+        {
+          id: "act_m1",
+          day: 1,
+          time: "11:00",
+          title: "Old Manali Artisanal Cafe Stroll",
+          details: "Fresh croissants, local honey, and mountain coffee",
+          notes: "Cafe 1947 by riverside",
+          location: "Old Manali",
+          category: "food",
+        },
+        {
+          id: "act_m2",
+          day: 2,
+          time: "09:30",
+          title: "Jogini Waterfall Pine Trail Hike",
+          details: "Gentle 3km walk through deodar trees",
+          notes: "Pack water bottles",
+          location: "Vashisht",
+          category: "activity",
+        },
+      ],
+      bookings: [
+        {
+          id: "bk_m1",
+          type: "hotel",
+          provider: "Zostel Old Manali",
+          dateTime: "15 Nov, 01:00 PM",
+          referenceNumber: "ZOS-MNL-89",
+          notes: "Balcony room with valley view",
+        },
+      ],
+      locations: [
+        {
+          id: "loc_m1",
+          name: "Mall Road Junction",
+          order: 1,
+          travelTimeFromPrev: "Start",
+          routeInfo: "Central town hub",
+        },
+        {
+          id: "loc_m2",
+          name: "Solang Valley Ridge",
+          order: 2,
+          travelTimeFromPrev: "35 mins",
+          routeInfo: "Via Solang Road",
+        },
+      ],
+      expenses: [
+        {
+          id: "exp_m1",
+          title: "Delhi to Manali Volvo Bus",
+          category: "Transport",
+          amount: 2200,
+          date: "2026-10-05",
+        },
+        {
+          id: "exp_m2",
+          title: "Zostel Room Advance",
+          category: "Stay",
+          amount: 4500,
+          date: "2026-10-06",
+        },
+      ],
+    },
+  ];
+
   return {
     users,
     guides,
@@ -1410,7 +1604,7 @@ export function createSeedState(): AppState {
     invitations,
     guideRequests,
     groupJoinRequests,
-    tripPlans: [],
+    tripPlans,
     // By default unauthenticated or initial test login
     currentUserId: "u_kanishka",
     currentGuideId: null,

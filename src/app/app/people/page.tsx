@@ -6,7 +6,7 @@ import { useApp } from "@/lib/store";
 import { Avatar } from "@/components/Ui";
 
 export default function FindPeoplePage() {
-  const { users, currentUser, compatibilityWith, groups, inviteTraveler, invitations } = useApp();
+  const { users, currentUser, compatibilityWith, groups, inviteTraveler, invitations, getDmConversationId } = useApp();
   const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
   const [minMatch, setMinMatch] = useState(0);
@@ -196,6 +196,15 @@ export default function FindPeoplePage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  {currentUser && (
+                    <Link
+                      href={`/app/messages/${getDmConversationId(currentUser.id, user.id)}`}
+                      className="btn-secondary rounded-lg px-3 py-1.5 text-xs font-medium"
+                    >
+                      Message
+                    </Link>
+                  )}
+
                   <Link
                     href={`/app/travelers/${user.id}`}
                     className="btn-secondary rounded-lg px-3.5 py-1.5 text-xs"

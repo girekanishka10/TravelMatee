@@ -10,7 +10,7 @@ import { Avatar } from "@/components/Ui";
 
 export default function TravelerProfilePage() {
   const { userId } = useParams<{ userId: string }>();
-  const { users, reviews, currentUser, compatibilityWith, blockUser, reportUser, groups, inviteTraveler, invitations } = useApp();
+  const { users, reviews, currentUser, compatibilityWith, blockUser, reportUser, groups, inviteTraveler, invitations, getDmConversationId } = useApp();
 
   const user = users.find((u) => u.id === userId);
   const [reportOpen, setReportOpen] = useState(false);
@@ -78,13 +78,23 @@ export default function TravelerProfilePage() {
             <span className="rounded-lg bg-sand px-3 py-1 text-xs font-semibold text-ink">
               {user.travelPersonality?.title || "Explorer"}
             </span>
-            {currentUser && currentUser.id !== user.id && myGroups.length > 0 && (
-              <button
-                onClick={() => setInviteModalOpen(true)}
-                className="btn-primary rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-              >
-                Invite to Group
-              </button>
+            {currentUser && currentUser.id !== user.id && (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/app/messages/${getDmConversationId(currentUser.id, user.id)}`}
+                  className="btn-secondary rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+                >
+                  Message
+                </Link>
+                {myGroups.length > 0 && (
+                  <button
+                    onClick={() => setInviteModalOpen(true)}
+                    className="btn-primary rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+                  >
+                    Invite to Group
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

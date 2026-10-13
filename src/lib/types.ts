@@ -187,9 +187,12 @@ export interface Message {
   id: string;
   senderId: string;
   groupId: string;
+  conversationId?: string;
+  recipientId?: string;
   message: string;
   timestamp: string;
   type: "text" | "location" | "system" | "itinerary";
+  readBy?: string[];
 }
 
 export interface GuideRequest {
@@ -225,6 +228,8 @@ export interface PlannerActivity {
   time: string;
   title: string;
   details?: string;
+  notes?: string;
+  location?: string;
   category?: "sightseeing" | "food" | "transport" | "stay" | "activity";
 }
 
@@ -256,6 +261,7 @@ export interface PlannerExpense {
 export interface TripPlan {
   id: string;
   tripId?: string;
+  userId?: string;
   title: string;
   destination: string;
   dates: string;

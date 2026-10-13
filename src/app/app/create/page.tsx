@@ -8,7 +8,7 @@ import type { User } from "@/lib/types";
 import { Avatar } from "@/components/Ui";
 
 export default function CreateGroupPage() {
-  const { createTrip, recommendedTravelers, currentUser, inviteTraveler } = useApp();
+  const { createTrip, recommendedTravelers, currentUser } = useApp();
   const router = useRouter();
 
   const [step, setStep] = useState<"details" | "travelers">("details");
@@ -51,11 +51,7 @@ export default function CreateGroupPage() {
     const { group } = createTrip({
       ...form,
       initialMembers: [creatorId],
-    });
-
-    // Send invitations to all invited travelers
-    invitedTravelerIds.forEach((userId) => {
-      inviteTraveler(group.id, userId);
+      inviteUserIds: invitedTravelerIds,
     });
 
     // Stops showing more profiles, creates group, and immediately shows the created group!

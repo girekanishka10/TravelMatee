@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { ACTIVITY_OPTIONS } from "@/lib/quiz";
 import { getInitials } from "@/lib/format";
 
@@ -51,6 +54,7 @@ export function Avatar({
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
+  const [hasError, setHasError] = useState(false);
   const initials = getInitials(name);
   const sizeClasses = {
     xs: "h-7 w-7 text-[10px]",
@@ -60,11 +64,12 @@ export function Avatar({
     xl: "h-16 w-16 text-base font-bold",
   }[size];
 
-  if (photo && photo.trim().length > 0) {
+  if (photo && photo.trim().length > 0 && !hasError) {
     return (
       <img
         src={photo}
         alt={name}
+        onError={() => setHasError(true)}
         className={`rounded-full object-cover border border-line shrink-0 ${sizeClasses} ${className}`}
       />
     );

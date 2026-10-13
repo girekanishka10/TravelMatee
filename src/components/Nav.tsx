@@ -6,7 +6,11 @@ import { useApp } from "@/lib/store";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { userRole } = useApp();
+  const { userRole, currentUser, invitations } = useApp();
+
+  const pendingInvitesCount = (invitations || []).filter(
+    (i) => (i.toUserId === currentUser?.id || i.invitedUserId === currentUser?.id) && i.status === "pending"
+  ).length;
 
   const items =
     userRole === "guide"
@@ -18,8 +22,9 @@ export function BottomNav() {
       : [
           { href: "/app", label: "Home", icon: HomeIcon },
           { href: "/app/explore", label: "Explore", icon: CompassIcon },
-          { href: "/app/people", label: "Find People", icon: PeopleIcon },
+          { href: "/app/people", label: "People", icon: PeopleIcon },
           { href: "/app/planner", label: "Planner", icon: CalendarIcon },
+          { href: "/app/invites", label: `Invites${pendingInvitesCount > 0 ? ` (${pendingInvitesCount})` : ""}`, icon: EnvelopeIcon },
           { href: "/app/trips", label: "Trips", icon: BagIcon },
           { href: "/app/messages", label: "Messages", icon: ChatIcon },
           { href: "/app/profile", label: "Profile", icon: UserIcon },
@@ -28,8 +33,8 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-card/95 backdrop-blur md:hidden">
       <ul
-        className={`mx-auto grid px-1.5 py-2 ${
-          items.length === 7 ? "grid-cols-7" : items.length === 6 ? "grid-cols-6" : "grid-cols-3 max-w-sm"
+        className={`mx-auto grid px-1 py-2 ${
+          items.length === 8 ? "grid-cols-8" : items.length === 7 ? "grid-cols-7" : "grid-cols-3 max-w-sm"
         }`}
       >
         {items.map((item) => {
@@ -44,14 +49,14 @@ export function BottomNav() {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1 text-[9px] transition-colors ${
+                className={`flex flex-col items-center gap-1 rounded-lg px-0.5 py-1 text-[8.5px] transition-colors ${
                   active
                     ? "bg-[#e2ede5] text-[#153a25] font-semibold border border-[#b5d2be]"
                     : "text-muted hover:text-ink"
                 }`}
               >
                 <item.icon active={active} />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate max-w-[45px]">{item.label}</span>
               </Link>
             </li>
           );
@@ -63,7 +68,7 @@ export function BottomNav() {
 
 export function SideNav() {
   const pathname = usePathname();
-  const { userRole, currentUser, invitations } = useApp();
+  const { userRole, currentUser, currentGuide, invitations, users, guides, switchAccount } = useApp();
 
   const pendingInvitesCount = (invitations || []).filter(
     (i) => (i.toUserId === currentUser?.id || i.invitedUserId === currentUser?.id) && i.status === "pending"
@@ -121,12 +126,35 @@ export function SideNav() {
         </ul>
       </div>
 
-      <div className="pt-4 border-t border-line text-[11px] text-muted px-2">
-        {userRole === "guide" ? (
-          <span>Guide Portal Active</span>
-        ) : (
-          <span>Traveler Portal</span>
-        )}
+      <div className="pt-4 border-t border-line text-[11px] text-muted px-1 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-ink">Demo Account</span>
+          <span className="text-[10px] bg-sand px-1.5 py-0.5 rounded capitalize">{userRole || "traveler"}</span>
+        </div>
+        <select
+          value={currentUser?.id || currentGuide?.id || ""}
+          onChange={(e) => {
+            const val = e.target.value;
+            const isGuide = guides.some((g) => g.id === val);
+            switchAccount(val, isGuide ? "guide" : "traveler");
+          }}
+          className="w-full rounded border border-line bg-paper p-1.5 text-xs text-ink outline-none"
+        >
+          <optgroup label="Travelers">
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.city})
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Certified Guides">
+            {guides.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.location})
+              </option>
+            ))}
+          </optgroup>
+        </select>
       </div>
     </aside>
   );
