@@ -134,6 +134,42 @@ export default function TravelerProfilePage() {
         </div>
       </div>
 
+      {/* Travel Memories / Personal Trip Photos */}
+      {user.travelPhotos && user.travelPhotos.length > 0 && (
+        <section className="mt-6 rounded-xl border border-line bg-card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-ink">Travel Memories ({user.travelPhotos.length})</h2>
+            <span className="text-[11px] text-muted">Personal photos from visited places</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {user.travelPhotos.map((photo) => (
+              <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-line bg-paper">
+                <div className="aspect-square w-full overflow-hidden bg-sand">
+                  <img
+                    src={photo.url}
+                    alt={photo.caption || photo.destination || "Personal trip photo"}
+                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                  />
+                </div>
+                {(photo.destination || photo.tripDate || photo.caption) && (
+                  <div className="p-2 space-y-0.5 text-[11px]">
+                    {photo.destination && (
+                      <p className="font-semibold text-ink truncate">📍 {photo.destination}</p>
+                    )}
+                    {photo.tripDate && (
+                      <p className="text-muted text-[10px]">{photo.tripDate}</p>
+                    )}
+                    {photo.caption && (
+                      <p className="text-muted line-clamp-2">{photo.caption}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Compatibility Section */}
       {score && (
         <section className="mt-6 rounded-xl border border-line bg-card p-5">

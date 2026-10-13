@@ -68,7 +68,7 @@ export function BottomNav() {
 
 export function SideNav() {
   const pathname = usePathname();
-  const { userRole, currentUser, currentGuide, invitations, users, guides, switchAccount } = useApp();
+  const { userRole, currentUser, invitations } = useApp();
 
   const pendingInvitesCount = (invitations || []).filter(
     (i) => (i.toUserId === currentUser?.id || i.invitedUserId === currentUser?.id) && i.status === "pending"
@@ -126,35 +126,12 @@ export function SideNav() {
         </ul>
       </div>
 
-      <div className="pt-4 border-t border-line text-[11px] text-muted px-1 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-ink">Demo Account</span>
-          <span className="text-[10px] bg-sand px-1.5 py-0.5 rounded capitalize">{userRole || "traveler"}</span>
-        </div>
-        <select
-          value={currentUser?.id || currentGuide?.id || ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            const isGuide = guides.some((g) => g.id === val);
-            switchAccount(val, isGuide ? "guide" : "traveler");
-          }}
-          className="w-full rounded border border-line bg-paper p-1.5 text-xs text-ink outline-none"
-        >
-          <optgroup label="Travelers">
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.city})
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Certified Guides">
-            {guides.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name} ({g.location})
-              </option>
-            ))}
-          </optgroup>
-        </select>
+      <div className="pt-4 border-t border-line text-[11px] text-muted px-2">
+        {userRole === "guide" ? (
+          <span>Guide Portal Active</span>
+        ) : (
+          <span>Traveler Portal</span>
+        )}
       </div>
     </aside>
   );

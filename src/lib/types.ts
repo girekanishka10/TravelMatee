@@ -66,6 +66,15 @@ export interface EmergencyContact {
   phone: string;
 }
 
+export interface TravelPhoto {
+  id: string;
+  url: string;
+  caption?: string;
+  destination?: string;
+  tripDate?: string;
+  uploadedAt: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -77,6 +86,7 @@ export interface User {
   password: string;
   verificationStatus: "unverified" | "verified";
   profilePhoto: string;
+  travelPhotos?: TravelPhoto[];
   bio: string;
   travelPersonality?: TravelPersonality;
   compatibilityAnswers?: CompatibilityAnswers;

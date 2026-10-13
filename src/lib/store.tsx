@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,6 +26,7 @@ import type {
   Invitation,
   Message,
   Review,
+  TravelPhoto,
   Trip,
   TripPlan,
   User,
@@ -39,12 +41,13 @@ type Store = AppState & {
   login: (identifier: string, password: string) => string | null;
   loginAsGuide: (identifier: string, password: string) => string | null;
   logout: () => void;
-  switchAccount: (userIdOrGuideId: string, role?: "traveler" | "guide") => void;
   signup: (input: Omit<User, "id" | "verificationStatus" | "previousTrips" | "completedTripIds" | "rating" | "completedTripCount" | "blockedUserIds" | "savedTripIds" | "reportedUserIds" | "bio">) => string | null;
   signupAsGuide: (input: Omit<Guide, "id" | "rating" | "verifiedTrips" | "answers">) => string | null;
   verifyCurrentUser: () => void;
   completeQuiz: (answers: CompatibilityAnswers) => void;
   updateProfile: (patch: Partial<User>) => void;
+  addTravelPhotos: (photos: { url: string; caption?: string; destination?: string; tripDate?: string }[]) => void;
+  deleteTravelPhoto: (photoId: string) => void;
   saveTrip: (tripId: string) => void;
   createTrip: (input: Omit<Trip, "id" | "creatorId" | "status" | "itinerary" | "rules" | "photos"> & {
     itinerary?: Trip["itinerary"];
@@ -128,25 +131,43 @@ function loadState(): AppState {
     const parsed = JSON.parse(raw) as Partial<AppState>;
     const seed = createSeedState();
 
-    // Ensure seed users and any newly registered users are preserved without duplicates
+    // Ensure seed users and newly registered users are preserved without loss
     const savedUsers = Array.isArray(parsed.users) ? parsed.users : [];
-    const existingUserIds = new Set(savedUsers.map((u) => u.id));
-    const mergedUsers = [...savedUsers];
+    const userMap = new Map<string, User>();
+    for (const u of savedUsers) {
+      if (u && u.id) {
+        userMap.set(u.id, {
+          ...u,
+          email: (u.email || "").trim().toLowerCase(),
+          travelPhotos: Array.isArray(u.travelPhotos) ? u.travelPhotos : [],
+        });
+      }
+    }
     for (const su of seed.users) {
-      if (!existingUserIds.has(su.id)) {
-        mergedUsers.push(su);
+      if (!userMap.has(su.id)) {
+        userMap.set(su.id, {
+          ...su,
+          email: (su.email || "").trim().toLowerCase(),
+          travelPhotos: Array.isArray(su.travelPhotos) ? su.travelPhotos : [],
+        });
       }
     }
+    const mergedUsers = Array.from(userMap.values());
 
-    // Ensure seed guides and registered guides are preserved without duplicates
+    // Ensure seed guides and registered guides are preserved
     const savedGuides = Array.isArray(parsed.guides) ? parsed.guides : [];
-    const existingGuideIds = new Set(savedGuides.map((g) => g.id));
-    const mergedGuides = [...savedGuides];
-    for (const sg of seed.guides) {
-      if (!existingGuideIds.has(sg.id)) {
-        mergedGuides.push(sg);
+    const guideMap = new Map<string, Guide>();
+    for (const g of savedGuides) {
+      if (g && g.id) {
+        guideMap.set(g.id, g);
       }
     }
+    for (const sg of seed.guides) {
+      if (!guideMap.has(sg.id)) {
+        guideMap.set(sg.id, sg);
+      }
+    }
+    const mergedGuides = Array.from(guideMap.values());
 
     // Ensure seed trips are preserved
     const savedTrips = Array.isArray(parsed.trips) ? parsed.trips : [];
@@ -198,6 +219,20 @@ function loadState(): AppState {
       }
     }
 
+    let currentUserId: string | null = null;
+    if (parsed.currentUserId && mergedUsers.some((u) => u.id === parsed.currentUserId)) {
+      currentUserId = parsed.currentUserId;
+    } else if (parsed.currentUserId === null) {
+      currentUserId = null;
+    } else {
+      currentUserId = parsed.currentUserId !== undefined ? null : seed.currentUserId;
+    }
+
+    let currentGuideId: string | null = null;
+    if (parsed.currentGuideId && mergedGuides.some((g) => g.id === parsed.currentGuideId)) {
+      currentGuideId = parsed.currentGuideId;
+    }
+
     return {
       users: mergedUsers,
       trips: mergedTrips,
@@ -209,9 +244,9 @@ function loadState(): AppState {
       guideRequests: Array.isArray(parsed.guideRequests) && parsed.guideRequests.length ? parsed.guideRequests : seed.guideRequests,
       groupJoinRequests: Array.isArray(parsed.groupJoinRequests) && parsed.groupJoinRequests.length ? parsed.groupJoinRequests : seed.groupJoinRequests,
       tripPlans: mergedTripPlans,
-      currentUserId: parsed.currentUserId !== undefined ? parsed.currentUserId : seed.currentUserId,
-      currentGuideId: parsed.currentGuideId ?? null,
-      userRole: parsed.userRole ?? "traveler",
+      currentUserId,
+      currentGuideId,
+      userRole: currentGuideId ? "guide" : currentUserId ? "traveler" : null,
     };
   } catch {
     return createSeedState();
@@ -219,39 +254,57 @@ function loadState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(createSeedState);
+  const [state, setState] = useState<AppState>(() => {
+    if (typeof window !== "undefined") return loadState();
+    return createSeedState();
+  });
   const [hydrated, setHydrated] = useState(false);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const isLoadedRef = useRef(false);
 
   useEffect(() => {
-    setState(loadState());
+    const loaded = loadState();
+    setState(loaded);
     setHydrated(true);
+    isLoadedRef.current = true;
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!hydrated || !isLoadedRef.current) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (err) {
+      console.error("Failed to save state to localStorage", err);
+    }
   }, [state, hydrated]);
 
   const currentUser = useMemo(
-    () => state.users.find((u) => u.id === state.currentUserId) ?? null,
+    () => {
+      if (!state.currentUserId) return null;
+      return state.users.find((u) => u.id === state.currentUserId) ?? null;
+    },
     [state.users, state.currentUserId]
   );
 
   const currentGuide = useMemo(
-    () => state.guides.find((g) => g.id === state.currentGuideId) ?? null,
+    () => {
+      if (!state.currentGuideId) return null;
+      return state.guides.find((g) => g.id === state.currentGuideId) ?? null;
+    },
     [state.guides, state.currentGuideId]
   );
 
   const login = useCallback(
     (identifier: string, password: string) => {
       const id = identifier.trim().toLowerCase();
-      const user = state.users.find(
-        (u) =>
-          (u.email.toLowerCase() === id || u.mobile === identifier.trim()) &&
-          u.password === password
-      );
-      if (!user) return "Check your email/mobile and password.";
+      const pwd = password.trim();
+      const user = state.users.find((u) => {
+        const uEmail = (u.email || "").trim().toLowerCase();
+        const uMobile = (u.mobile || "").trim();
+        const matchesId = uEmail === id || (uMobile.length > 0 && uMobile === identifier.trim());
+        return matchesId && u.password === pwd;
+      });
+      if (!user) return "Invalid email/mobile or password. Please check your credentials.";
       setState((s) => ({
         ...s,
         currentUserId: user.id,
@@ -292,45 +345,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const switchAccount = useCallback((userIdOrGuideId: string, role?: "traveler" | "guide") => {
-    const user = state.users.find((u) => u.id === userIdOrGuideId);
-    const guide = state.guides.find((g) => g.id === userIdOrGuideId);
-    if (guide && (!user || role === "guide")) {
-      setState((s) => ({
-        ...s,
-        currentUserId: null,
-        currentGuideId: guide.id,
-        userRole: "guide",
-      }));
-    } else if (user) {
-      setState((s) => ({
-        ...s,
-        currentUserId: user.id,
-        currentGuideId: null,
-        userRole: "traveler",
-      }));
-    }
-  }, [state.users, state.guides]);
-
   const signup = useCallback((input: Parameters<Store["signup"]>[0]) => {
-    const exists = state.users.some(
-      (u) => u.email.toLowerCase() === input.email.toLowerCase() || u.mobile === input.mobile
-    );
-    if (exists) return "An account with this email or mobile already exists.";
+    const normEmail = input.email.trim().toLowerCase();
+    const normMobile = input.mobile.trim();
+    const trimmedName = input.name.trim();
+
+    if (!trimmedName) return "Please enter your full name.";
+    if (!normEmail) return "Please enter a valid email address.";
+    if (!input.password || input.password.trim().length < 4) return "Password must be at least 4 characters.";
+
+    const exists = state.users.some((u) => {
+      const uEmail = (u.email || "").trim().toLowerCase();
+      const uMobile = (u.mobile || "").trim();
+      return uEmail === normEmail || (normMobile.length > 0 && uMobile === normMobile);
+    });
+
+    if (exists) return "An account with this email or mobile already exists. Please log in.";
+
     const id = uid("u");
     const user: User = {
       ...input,
       id,
+      name: trimmedName,
+      email: normEmail,
+      mobile: normMobile,
+      city: input.city ? input.city.trim() : "Pune",
+      password: input.password.trim(),
       verificationStatus: "unverified",
+      profilePhoto: "",
+      travelPhotos: [],
       previousTrips: [],
       completedTripIds: [],
-      rating: 0,
+      rating: 5.0,
       completedTripCount: 0,
       blockedUserIds: [],
       savedTripIds: [],
       reportedUserIds: [],
       bio: "New on TravelMate.",
+      compatibilityAnswers: {
+        q1_destination: "Mountains",
+        q2_idealTrip: "Exploring and sightseeing",
+        q3_activities: ["Sightseeing", "Photography", "Hiking"],
+        q4_budget: "Moderate",
+        q5_pace: "Balanced",
+        q6_social: "Quite social",
+        q7_travelWith: "Small group",
+        q8_accommodation: "Comfortable hotel",
+        q9_topPriorities: ["Safety", "Comfort", "Scenic beauty"],
+        q10_activeTime: "Flexible",
+        q11_spontaneous: "Balanced planning",
+        q12_transit: "Cab or car",
+        q13_food: "Local and street food",
+        q14_personalSpace: "Some alone time",
+        q15_companionStyle: "Easy-going",
+      },
+      travelPersonality: {
+        title: "Explorer",
+        emoji: "🧭",
+        scores: { adventure: 75, social: 75, planning: 75, comfort: 75, spontaneity: 75 },
+      },
     };
+
     setState((s) => ({
       ...s,
       users: [...s.users, user],
@@ -411,14 +486,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   ...g,
                   photo: patch.profilePhoto !== undefined ? patch.profilePhoto : g.photo,
                   bio: patch.bio !== undefined ? patch.bio : g.bio,
+                  name: patch.name !== undefined ? patch.name : g.name,
+                  location: patch.city !== undefined ? patch.city : g.location,
                 }
               : g
           ),
         };
       }
+      if (!s.currentUserId) return s;
       return {
         ...s,
-        users: s.users.map((u) => (u.id === s.currentUserId ? { ...u, ...patch, id: u.id } : u)),
+        users: s.users.map((u) => {
+          if (u.id !== s.currentUserId) return u;
+          const updated: User = {
+            ...u,
+            ...patch,
+            id: u.id,
+            email: u.email,
+          };
+          if (patch.compatibilityAnswers) {
+            updated.compatibilityAnswers = {
+              ...(u.compatibilityAnswers || {}),
+              ...patch.compatibilityAnswers,
+            };
+            updated.travelPersonality = buildPersonality(updated.compatibilityAnswers);
+          }
+          return updated;
+        }),
+      };
+    });
+  }, []);
+
+  const addTravelPhotos = useCallback(
+    (newPhotos: { url: string; caption?: string; destination?: string; tripDate?: string }[]) => {
+      setState((s) => {
+        if (!s.currentUserId) return s;
+        const items: TravelPhoto[] = newPhotos.map((p) => ({
+          id: uid("tp"),
+          url: p.url,
+          caption: p.caption || "",
+          destination: p.destination || "",
+          tripDate: p.tripDate || "",
+          uploadedAt: new Date().toISOString(),
+        }));
+        return {
+          ...s,
+          users: s.users.map((u) =>
+            u.id === s.currentUserId
+              ? { ...u, travelPhotos: [...(u.travelPhotos || []), ...items] }
+              : u
+          ),
+        };
+      });
+    },
+    []
+  );
+
+  const deleteTravelPhoto = useCallback((photoId: string) => {
+    setState((s) => {
+      if (!s.currentUserId) return s;
+      return {
+        ...s,
+        users: s.users.map((u) =>
+          u.id === s.currentUserId
+            ? { ...u, travelPhotos: (u.travelPhotos || []).filter((p) => p.id !== photoId) }
+            : u
+        ),
       };
     });
   }, []);
@@ -1344,12 +1477,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     login,
     loginAsGuide,
     logout,
-    switchAccount,
     signup,
     signupAsGuide,
     verifyCurrentUser,
     completeQuiz,
     updateProfile,
+    addTravelPhotos,
+    deleteTravelPhoto,
     saveTrip,
     createTrip,
     toggleGroupRecruiting,

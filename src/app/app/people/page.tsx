@@ -42,12 +42,12 @@ export default function FindPeoplePage() {
     return travelersList.filter(({ user, score }) => {
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchName = user.name.toLowerCase().includes(q);
-        const matchCity = user.city.toLowerCase().includes(q);
-        const matchBio = user.bio.toLowerCase().includes(q);
+        const matchName = (user.name || "").toLowerCase().includes(q);
+        const matchCity = (user.city || "").toLowerCase().includes(q);
+        const matchBio = (user.bio || "").toLowerCase().includes(q);
         if (!matchName && !matchCity && !matchBio) return false;
       }
-      if (selectedCity !== "all" && user.city.toLowerCase() !== selectedCity.toLowerCase()) {
+      if (selectedCity !== "all" && (user.city || "").toLowerCase() !== selectedCity.toLowerCase()) {
         return false;
       }
       if (minMatch > 0 && score < minMatch) {
@@ -58,7 +58,7 @@ export default function FindPeoplePage() {
   }, [travelersList, search, selectedCity, minMatch]);
 
   const uniqueCities = useMemo(() => {
-    return Array.from(new Set(travelersList.map((t) => t.user.city)));
+    return Array.from(new Set(travelersList.map((t) => t.user.city).filter(Boolean)));
   }, [travelersList]);
 
   function handleSendInvite(groupId: string, targetUserId: string) {
