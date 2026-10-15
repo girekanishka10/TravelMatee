@@ -118,7 +118,7 @@ export default function QuizPage() {
             onClick={() => router.push("/app")}
             className="mt-8 w-full rounded-lg bg-[#e2ede5] text-[#153a25] border border-[#b5d2be] py-2.5 text-sm font-semibold hover:bg-[#d1e4d6] hover:text-[#0b2517] transition-colors"
           >
-            Continue to TravelMate →
+            Continue to Zovira →
           </button>
         </div>
       </main>

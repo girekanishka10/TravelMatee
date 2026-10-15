@@ -14,9 +14,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "TravelMate — Find people who travel like you",
+  title: "Zovira — Don't just choose a destination. Choose the right companions.",
   description:
-    "Discover compatible travel groups, create your own group, or find the perfect guide for your next adventure.",
+    "Don't just choose a destination. Choose the right companions. Discover compatible travel groups, create your own group, or find the perfect guide for your next adventure.",
 };
 
 export const viewport: Viewport = {

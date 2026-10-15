@@ -381,7 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       blockedUserIds: [],
       savedTripIds: [],
       reportedUserIds: [],
-      bio: "New on TravelMate.",
+      bio: "New on Zovira.",
       compatibilityAnswers: {
         q1_destination: "Mountains",
         q2_idealTrip: "Exploring and sightseeing",

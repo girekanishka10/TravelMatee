@@ -96,7 +96,7 @@ export function SideNav() {
     <aside className="hidden w-56 shrink-0 border-r border-line bg-card p-4 md:flex md:flex-col justify-between">
       <div>
         <Link href={userRole === "guide" ? "/app/guide-dashboard" : "/app"} className="px-2 pb-6 block font-serif text-2xl font-bold text-ink">
-          TravelMate
+          Zovira
         </Link>
         <ul className="space-y-1">
           {items.map((item) => {

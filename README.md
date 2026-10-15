@@ -1,4 +1,4 @@
-#  TravelMate
+#  Zovira
 
 Next.js 15 travel companion prototype. Local mock data lives in `localStorage` (`travelmate.v1`).
 

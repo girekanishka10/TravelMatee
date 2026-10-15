@@ -4,7 +4,7 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-paper text-ink flex flex-col justify-between">
       <header className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-6 border-b border-line">
-        <span className="font-serif text-2xl font-bold tracking-tight">TravelMate</span>
+        <span className="font-serif text-2xl font-bold tracking-tight">Zovira</span>
         <div className="flex items-center gap-3">
           <Link
             href="/login"
@@ -26,7 +26,7 @@ export default function LandingPage() {
           Travel Compatibility & Group Matching
         </p>
         <h1 className="mt-4 font-serif text-4xl sm:text-5xl md:text-6xl text-ink leading-tight">
-          Find people who travel like you.
+          Don&apos;t just choose a destination. Choose the right companions.
         </h1>
         <p className="mt-5 max-w-lg text-base sm:text-lg text-muted leading-relaxed">
           Match with travelers based on daily pace, budgets, and habits. Join real groups, find certified local guides, or plan itineraries together.
@@ -58,7 +58,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="mx-auto w-full max-w-4xl px-6 py-6 border-t border-line text-xs text-muted flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span>TravelMate &copy; {new Date().getFullYear()}</span>
+        <span>Zovira &copy; {new Date().getFullYear()}</span>
         <div className="flex gap-4">
           <Link href="/login" className="hover:underline">Traveler Login</Link>
           <Link href="/login?role=guide" className="hover:underline">Guide Portal</Link>

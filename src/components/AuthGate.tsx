@@ -41,7 +41,7 @@ export function AuthGate({
   }, [hydrated, currentUser, currentGuide, userRole, needQuiz, router]);
 
   if (!hydrated || (!currentUser && !currentGuide)) {
-    return <div className="p-8 text-center text-xs text-muted">Loading TravelMate...</div>;
+    return <div className="p-8 text-center text-xs text-muted">Loading Zovira...</div>;
   }
 
   if (currentUser && needQuiz && !currentUser.compatibilityAnswers && userRole !== "guide") {

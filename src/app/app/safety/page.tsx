@@ -18,7 +18,7 @@ export default function SafetyPage() {
     <main className="mx-auto max-w-xl px-5 py-6">
       <h1 className="font-serif text-4xl">Safety</h1>
       <p className="mt-2 text-sm text-muted">
-        TravelMate is built for group travel, not dating. Identity badges confirm demo verification only. Sensitive ID
+        Zovira is built for group travel, not dating. Identity badges confirm demo verification only. Sensitive ID
         data is never shown on profiles.
       </p>
 

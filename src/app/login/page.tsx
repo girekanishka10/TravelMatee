@@ -178,7 +178,7 @@ function LoginContent() {
       </div>
 
       <div className="mt-6 rounded-lg border border-line bg-card/60 p-4 text-xs text-muted">
-        <p className="font-semibold text-ink mb-1">New to TravelMate?</p>
+        <p className="font-semibold text-ink mb-1">New to Zovira?</p>
         <p>
           {role === "guide"
             ? "Register a verified guide profile to offer regional tours, list rates, and receive booking requests."
