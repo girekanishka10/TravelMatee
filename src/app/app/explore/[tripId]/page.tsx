@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Breakdown } from "@/components/Compatibility";
 import { formatDateRange, formatINR } from "@/lib/format";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function GroupPublicPage() {
   const { tripId } = useParams<{ tripId: string }>();
@@ -20,6 +20,7 @@ export default function GroupPublicPage() {
     saveTrip,
     compatibilityWithTrip,
     groupJoinRequests,
+    leaveGroup,
   } = useApp();
 
   const [groupJoinOpen, setGroupJoinOpen] = useState(false);
@@ -27,6 +28,7 @@ export default function GroupPublicPage() {
   const [memberNames, setMemberNames] = useState("Friend 1, Friend 2");
   const [notes, setNotes] = useState("");
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   const trip = trips.find((t) => t.id === tripId);
   const group = groups.find((g) => g.tripId === tripId);
@@ -55,6 +57,13 @@ export default function GroupPublicPage() {
     setNotice(null);
     const res = requestJoin(group!.id);
     setNotice({ text: res.message, error: !res.success });
+  }
+
+  function handleConfirmLeave() {
+    if (!group) return;
+    const res = leaveGroup(group.id);
+    setNotice({ text: res.message, error: !res.success });
+    setLeaveConfirmOpen(false);
   }
 
   function handleGroupJoinSubmit(e: React.FormEvent) {
@@ -143,12 +152,21 @@ export default function GroupPublicPage() {
               Manage Your Group →
             </Link>
           ) : isMember ? (
-            <Link
-              href={`/app/trips/${group.id}`}
-              className="btn-primary rounded-lg px-4 py-2 text-xs"
-            >
-              Open Group Chat & Details →
-            </Link>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/app/trips/${group.id}`}
+                className="btn-primary rounded-lg px-4 py-2 text-xs"
+              >
+                Open Group Chat & Details →
+              </Link>
+              <button
+                type="button"
+                onClick={() => setLeaveConfirmOpen(true)}
+                className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3.5 py-2 text-xs font-semibold hover:bg-red-100 transition-colors"
+              >
+                Leave Group
+              </button>
+            </div>
           ) : isFull ? (
             <button
               disabled
@@ -281,9 +299,12 @@ export default function GroupPublicPage() {
               <div className="flex items-center gap-3">
                 <Avatar name={m.name} photo={m.profilePhoto} size="sm" />
                 <div>
-                  <p className="text-xs font-medium text-ink">
-                    {m.name} {m.id === trip.creatorId && <span className="text-forest font-semibold">(Creator)</span>}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-xs font-medium text-ink">
+                      {m.name} {m.id === trip.creatorId && <span className="text-forest font-semibold">(Creator)</span>}
+                    </p>
+                    {"gender" in m && m.gender === "female" && <FemaleTag />}
+                  </div>
                 </div>
               </div>
 
@@ -324,6 +345,33 @@ export default function GroupPublicPage() {
             ))}
           </ul>
         </section>
+      )}
+      {/* LEAVE GROUP CONFIRMATION MODAL */}
+      {leaveConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-xl space-y-4">
+            <h3 className="font-serif text-lg font-bold text-ink">Leave Travel Group</h3>
+            <p className="text-xs text-muted leading-relaxed">
+              Are you sure you want to leave this group? You will no longer have access to the group chat or member-only coordination.
+            </p>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setLeaveConfirmOpen(false)}
+                className="btn-secondary rounded-lg px-3.5 py-2 text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLeave}
+                className="rounded-lg bg-red-600 text-white px-4 py-2 text-xs font-semibold hover:bg-red-700 transition-colors"
+              >
+                Confirm & Leave Group
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

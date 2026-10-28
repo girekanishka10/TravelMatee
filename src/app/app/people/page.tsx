@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function FindPeoplePage() {
   const { users, currentUser, compatibilityWith, groups, inviteTraveler, invitations, getDmConversationId } = useApp();
@@ -166,6 +166,7 @@ export default function FindPeoplePage() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-sm font-semibold text-ink">{user.name}</h2>
+                      {user.gender === "female" && <FemaleTag />}
                       <span className="text-xs text-muted">• {user.city}</span>
                       <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest">
                         {score}% compatible

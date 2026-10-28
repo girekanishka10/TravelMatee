@@ -28,12 +28,6 @@ export function AuthGate({
       return;
     }
 
-    // Traveler verification flow
-    if (currentUser && currentUser.verificationStatus !== "verified") {
-      router.replace("/verify");
-      return;
-    }
-
     // Traveler quiz flow
     if (currentUser && needQuiz && !currentUser.compatibilityAnswers) {
       router.replace("/quiz");

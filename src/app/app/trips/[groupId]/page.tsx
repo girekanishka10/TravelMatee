@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatDateRange, formatINR } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function GroupManagePage() {
   const { groupId } = useParams<{ groupId: string }>();
+  const router = useRouter();
   const {
     groups,
     trips,
@@ -19,6 +20,7 @@ export default function GroupManagePage() {
     respondJoin,
     respondGroupJoinRequest,
     removeMember,
+    leaveGroup,
     updateTrip,
     toggleGroupRecruiting,
     guides,
@@ -31,11 +33,28 @@ export default function GroupManagePage() {
   const [editing, setEditing] = useState(false);
   const [desc, setDesc] = useState(trip?.description ?? "");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   if (!group || !trip) return <main className="p-8 text-center text-sm text-muted">Group not found.</main>;
 
   const currentActorId = currentUser?.id || currentGuide?.id || "";
   const isCreator = group.creatorId === currentActorId;
+  const isMember = group.memberIds.includes(currentActorId);
+
+  function handleLeaveGroup() {
+    setLeaveError(null);
+    const res = leaveGroup(group!.id);
+    if (res.success) {
+      setActionNotice(res.message);
+      setLeaveModalOpen(false);
+      setTimeout(() => {
+        router.push("/app/trips");
+      }, 1200);
+    } else {
+      setLeaveError(res.message);
+    }
+  }
 
   const members = group.memberIds
     .map((id) => users.find((u) => u.id === id) || { id, name: id.includes("companion") ? "Group Traveler" : "Traveler", profilePhoto: "" })
@@ -121,6 +140,25 @@ export default function GroupManagePage() {
         {actionNotice && (
           <div className="mt-4 rounded-lg bg-sand/70 p-3 text-xs font-medium text-ink border border-line">
             {actionNotice}
+          </div>
+        )}
+
+        {/* Member Action: Leave Group */}
+        {isMember && (
+          <div className="mt-4 pt-3 border-t border-line flex items-center justify-between">
+            <span className="text-xs text-muted">
+              {isCreator ? "You are the creator of this group." : "You are an active member of this group."}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setLeaveError(null);
+                setLeaveModalOpen(true);
+              }}
+              className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3.5 py-1.5 text-xs font-semibold hover:bg-red-100 transition-colors"
+            >
+              Leave Group
+            </button>
           </div>
         )}
 
@@ -374,9 +412,12 @@ export default function GroupManagePage() {
               <div className="flex items-center gap-3">
                 <Avatar name={m.name} photo={m.profilePhoto} size="sm" />
                 <div>
-                  <p className="text-xs font-medium text-ink">
-                    {m.name} {m.id === trip.creatorId && <span className="text-forest font-semibold">(Creator)</span>}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-xs font-medium text-ink">
+                      {m.name} {m.id === trip.creatorId && <span className="text-forest font-semibold">(Creator)</span>}
+                    </p>
+                    {"gender" in m && m.gender === "female" && <FemaleTag />}
+                  </div>
                 </div>
               </div>
 
@@ -433,6 +474,49 @@ export default function GroupManagePage() {
           </div>
         )}
       </section>
+      {/* LEAVE GROUP CONFIRMATION MODAL */}
+      {leaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-line bg-card p-6 shadow-xl space-y-4">
+            <h3 className="font-serif text-lg font-bold text-ink">Leave Travel Group</h3>
+            <p className="text-xs text-muted leading-relaxed">
+              Are you sure you want to leave this group? You will no longer have access to the group chat or member-only coordination.
+            </p>
+            {isCreator && group.memberIds.length > 1 && (
+              <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                ⚠️ As group creator, leaving will transfer ownership to another group member.
+              </p>
+            )}
+            {isCreator && group.memberIds.length <= 1 && (
+              <p className="text-[11px] text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                You are the creator and only member. You cannot leave without other members. Manage or cancel the trip instead.
+              </p>
+            )}
+            {leaveError && (
+              <p className="text-xs text-red-600 bg-red-50 p-2 rounded-md">
+                {leaveError}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setLeaveModalOpen(false)}
+                className="btn-secondary rounded-lg px-3.5 py-2 text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isCreator && group.memberIds.length <= 1}
+                onClick={handleLeaveGroup}
+                className="rounded-lg bg-red-600 text-white px-4 py-2 text-xs font-semibold hover:bg-red-700 disabled:opacity-40 transition-colors"
+              >
+                Confirm & Leave Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

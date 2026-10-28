@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { formatDateRange, formatINR } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import type { ExploreFilters } from "@/lib/types";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function ExplorePage() {
   const { exploreTrips, guides, recommendedTravelers } = useApp();
@@ -280,8 +280,11 @@ export default function ExplorePage() {
                 >
                   <Avatar name={user.name} photo={user.profilePhoto} size="md" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <h2 className="text-sm font-semibold text-ink truncate">{user.name}</h2>
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h2 className="text-sm font-semibold text-ink truncate">{user.name}</h2>
+                        {user.gender === "female" && <FemaleTag />}
+                      </div>
                       <span className="text-[11px] font-medium text-forest shrink-0">
                         {score.overall}% Match
                       </span>

@@ -75,6 +75,8 @@ export interface TravelPhoto {
   uploadedAt: string;
 }
 
+export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected";
+
 export interface User {
   id: string;
   name: string;
@@ -84,7 +86,7 @@ export interface User {
   email: string;
   mobile: string;
   password: string;
-  verificationStatus: "unverified" | "verified";
+  verificationStatus: VerificationStatus;
   profilePhoto: string;
   travelPhotos?: TravelPhoto[];
   bio: string;
@@ -190,7 +192,7 @@ export interface Guide {
   photos: string[];
   bio: string;
   answers: CompatibilityAnswers;
-  verificationStatus?: "unverified" | "verified";
+  verificationStatus?: VerificationStatus;
 }
 
 export interface Message {

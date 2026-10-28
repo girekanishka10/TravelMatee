@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { firstName, formatDateRange, formatINR } from "@/lib/format";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function HomePage() {
   const { currentUser, currentGuide, trips, groups, invitations, recommendedTravelers, exploreTrips } = useApp();
@@ -200,7 +200,10 @@ export default function HomePage() {
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar name={user.name} photo={user.profilePhoto} size="sm" />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-ink truncate">{user.name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-xs font-bold text-ink truncate">{user.name}</p>
+                      {user.gender === "female" && <FemaleTag />}
+                    </div>
                     <p className="text-[11px] text-muted">{user.city} • {score.overall}% match</p>
                   </div>
                 </div>

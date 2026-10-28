@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ACTIVITY_OPTIONS } from "@/lib/quiz";
 import { useApp } from "@/lib/store";
 import type { User } from "@/lib/types";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function CreateGroupPage() {
   const { createTrip, recommendedTravelers, currentUser } = useApp();
@@ -274,8 +274,9 @@ export default function CreateGroupPage() {
                     <div className="flex items-start gap-3.5">
                       <Avatar name={user.name} photo={user.profilePhoto} size="md" />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold text-ink">{user.name}</h3>
+                        {user.gender === "female" && <FemaleTag />}
                         <span className="text-xs text-muted">• {user.city}</span>
                         <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest">
                           {score.overall}% match
@@ -338,7 +339,10 @@ export default function CreateGroupPage() {
               <div className="flex items-center gap-3">
                 <Avatar name={profileModalUser.name} photo={profileModalUser.profilePhoto} size="md" />
                 <div>
-                  <h3 className="text-base font-bold text-ink">{profileModalUser.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-ink">{profileModalUser.name}</h3>
+                    {profileModalUser.gender === "female" && <FemaleTag />}
+                  </div>
                   <p className="text-xs text-muted">{profileModalUser.city}</p>
                 </div>
               </div>

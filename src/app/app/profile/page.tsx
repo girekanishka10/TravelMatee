@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ageFromDob } from "@/lib/format";
 import { useApp } from "@/lib/store";
-import { CompatibilityAnswers } from "@/lib/types";
-import { Avatar } from "@/components/Ui";
+import { CompatibilityAnswers, Gender } from "@/lib/types";
+import { Avatar, FemaleTag, VerificationBadge } from "@/components/Ui";
 
 export default function ProfilePage() {
   const { currentUser, currentGuide, logout, updateProfile, addTravelPhotos, deleteTravelPhoto } = useApp();
@@ -15,6 +15,7 @@ export default function ProfilePage() {
   // Profile fields state
   const [name, setName] = useState<string>(currentUser?.name ?? currentGuide?.name ?? "");
   const [city, setCity] = useState<string>(currentUser?.city ?? currentGuide?.location ?? "");
+  const [gender, setGender] = useState<Gender>(currentUser?.gender ?? "prefer-not-to-say");
   const [bio, setBio] = useState<string>(currentUser?.bio ?? currentGuide?.bio ?? "");
   const [travelStyle, setTravelStyle] = useState<string>(
     String(
@@ -58,6 +59,7 @@ export default function ProfilePage() {
     if (currentUser) {
       setName(currentUser.name || "");
       setCity(currentUser.city || "");
+      setGender(currentUser.gender || "prefer-not-to-say");
       setBio(currentUser.bio || "");
       setTravelStyle(
         String(
@@ -310,6 +312,7 @@ export default function ProfilePage() {
       updateProfile({
         name: name.trim() || currentUser.name,
         city: city.trim() || currentUser.city,
+        gender,
         bio: bio.trim(),
         compatibilityAnswers: updatedAnswers,
         emergencyContact: { name: emergencyName.trim(), phone: emergencyPhone.trim() },
@@ -326,11 +329,15 @@ export default function ProfilePage() {
         <div className="flex items-start gap-4">
           <Avatar name={displayName || "User"} photo={avatarUrl} size="xl" />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-serif text-2xl font-bold text-ink">{displayName}</h1>
               <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest">
                 {isGuide ? "Guide Account" : "Traveler Account"}
               </span>
+              {!isGuide && currentUser?.gender === "female" && <FemaleTag />}
+              {!isGuide && currentUser && (
+                <VerificationBadge status={currentUser.verificationStatus} />
+              )}
             </div>
             <p className="text-xs text-muted mt-0.5">
               {currentUser && `${ageFromDob(currentUser.dateOfBirth)} yrs • `}📍 {displayLocation}
@@ -437,6 +444,54 @@ export default function ProfilePage() {
             />
           </div>
         </div>
+
+        {/* Gender Selection & Verification Status */}
+        {!isGuide && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-muted font-medium">Gender</label>
+              <select
+                className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink outline-none focus:border-forest"
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender)}
+              >
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="non-binary">Non-binary</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+              </select>
+              <p className="mt-1 text-[11px] text-muted">
+                Selecting &apos;Female&apos; displays the Female tag on your traveler profile and cards.
+              </p>
+            </div>
+
+            {currentUser && (
+              <div className="rounded-lg border border-line bg-paper p-3 flex flex-col justify-between">
+                <div>
+                  <p className="text-muted font-medium">Identity Verification</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <VerificationBadge status={currentUser.verificationStatus} />
+                    <span className="text-[11px] text-muted capitalize">
+                      {currentUser.verificationStatus === "verified"
+                        ? "Verified"
+                        : currentUser.verificationStatus === "pending"
+                        ? "Pending review"
+                        : currentUser.verificationStatus === "rejected"
+                        ? "Rejected"
+                        : "Not verified"}
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  href="/verify"
+                  className="mt-2 text-[11px] text-forest hover:underline font-semibold"
+                >
+                  {currentUser.verificationStatus === "unverified" ? "Verify identity →" : "View verification status →"}
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bio / Introduction */}
         <div>
@@ -702,7 +757,7 @@ export default function ProfilePage() {
             href="/quiz"
             className="block rounded-lg border border-line bg-card p-3 text-center text-xs font-medium text-ink hover:bg-sand transition-colors"
           >
-            Retake 15-Question Compatibility Test
+            Review & Edit Compatibility Test (15 Questions)
           </Link>
         )}
         <Link

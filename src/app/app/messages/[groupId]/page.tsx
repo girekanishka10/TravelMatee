@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { formatDateRange } from "@/lib/format";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 export default function ChatPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -111,8 +111,9 @@ export default function ChatPage() {
               </Link>
               <Avatar name={otherPerson.name} photo={otherProfilePhoto} size="md" />
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="font-serif text-lg font-bold text-ink">{otherPerson.name}</h1>
+                  {"gender" in otherPerson && otherPerson.gender === "female" && <FemaleTag />}
                   {"verificationStatus" in otherPerson && otherPerson.verificationStatus === "verified" && (
                     <span className="rounded-full bg-forest/10 px-1.5 py-0.2 text-[10px] font-medium text-forest">
                       ✓ Verified

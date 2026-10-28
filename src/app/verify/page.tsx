@@ -1,117 +1,178 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useApp } from "@/lib/store";
-
-const DEMO_OTP = "123456";
+import { VerificationBadge } from "@/components/Ui";
 
 export default function VerifyPage() {
-  const { currentUser, verifyCurrentUser } = useApp();
+  const { currentUser, submitVerificationRequest } = useApp();
   const router = useRouter();
-  const [step, setStep] = useState<"details" | "otp" | "done">("details");
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [demoId, setDemoId] = useState("");
-  const [sent, setSent] = useState(false);
-
-  useEffect(() => {
-    if (currentUser?.verificationStatus === "verified" && step !== "done") {
-      router.replace(currentUser.compatibilityAnswers ? "/app" : "/quiz");
-    }
-  }, [currentUser, step, router]);
+  const [method, setMethod] = useState("digilocker");
+  const [legalName, setLegalName] = useState(currentUser?.name || "");
+  const [consent, setConsent] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (!currentUser) {
     return (
-      <main className="p-8">
-        Please <a href="/login">log in</a> first.
+      <main className="mx-auto max-w-md p-8 text-center text-sm text-muted">
+        Please <Link href="/login" className="text-forest underline font-semibold">log in</Link> first.
       </main>
     );
   }
 
+  const status = currentUser.verificationStatus || "unverified";
+
+  function handleSubmitRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!consent) {
+      setNotice("Please accept the verification terms and data privacy consent.");
+      return;
+    }
+    const res = submitVerificationRequest();
+    setNotice(res.message);
+  }
+
   return (
-    <main className="mx-auto max-w-md px-5 py-12">
-      <p className="text-xs uppercase tracking-[0.2em] text-clay">Prototype only</p>
-      <h1 className="mt-2 font-serif text-4xl">Demo Identity Verification</h1>
-      <p className="mt-3 text-sm leading-6 text-muted">
-        Do not enter real government ID numbers. This flow is labelled as a demo and never stores Aadhaar or
-        Aadhaar-linked OTPs. A verification badge can appear on your profile; sensitive details stay private.
+    <main className="mx-auto max-w-lg px-6 py-10">
+      <Link href="/app/profile" className="text-xs text-muted hover:text-ink mb-6 inline-flex items-center gap-1">
+        ← Back to Profile
+      </Link>
+
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-wider text-muted font-medium">Identity Verification</p>
+        <VerificationBadge status={status} />
+      </div>
+
+      <h1 className="mt-2 font-serif text-3xl font-bold text-ink">Traveler Verification</h1>
+      <p className="mt-2 text-xs text-muted leading-relaxed">
+        Zovira ensures traveler safety by verifying travel companions. To safeguard personal data privacy, we do not store sensitive government identity numbers or raw document copies on this platform.
       </p>
 
-      {step === "details" && (
-        <div className="mt-8 space-y-4">
-          <label className="block text-sm">
-            Full name (as on a travel document)
-            <input defaultValue={currentUser.name} className="mt-1 w-full rounded-2xl border border-line bg-card px-4 py-3" />
-          </label>
-          <label className="block text-sm">
-            Demo ID token (any 4 characters)
-            <input
-              value={demoId}
-              onChange={(e) => setDemoId(e.target.value.slice(0, 4))}
-              placeholder="e.g. 4821"
-              className="mt-1 w-full rounded-2xl border border-line bg-card px-4 py-3"
-            />
-          </label>
-          <button
-            disabled={demoId.length < 4}
-            onClick={() => {
-              setSent(true);
-              setStep("otp");
-            }}
-            className="btn-primary w-full rounded-xl py-3 font-semibold disabled:opacity-40"
-          >
-            Send OTP
-          </button>
+      {/* Current Status Box */}
+      <div className="mt-6 rounded-xl border border-line bg-card p-5">
+        <h2 className="text-sm font-semibold text-ink">Current Status</h2>
+        <div className="mt-2 flex items-center gap-2">
+          <VerificationBadge status={status} />
+          <span className="text-xs text-muted capitalize">
+            {status === "verified"
+              ? "Your profile is verified."
+              : status === "pending"
+              ? "Verification request is currently pending official integration."
+              : status === "rejected"
+              ? "Verification was rejected."
+              : "No verification request submitted yet."}
+          </span>
         </div>
-      )}
 
-      {step === "otp" && (
-        <div className="mt-8 space-y-4">
-          {sent && (
-            <p className="rounded-2xl bg-sand px-4 py-3 text-sm">
-              Demo OTP sent. Use <strong>{DEMO_OTP}</strong>.
+        {status === "pending" && (
+          <div className="mt-4 rounded-lg bg-amber-50/80 border border-amber-200 p-3.5 text-xs text-amber-900 leading-relaxed">
+            <p className="font-semibold">⏳ Verification Request Pending</p>
+            <p className="mt-1 text-[11px]">
+              Your verification request has been queued. Because no external government identity provider is currently integrated into this demo environment, your verification status will remain <strong>Pending</strong>. Users are never automatically marked verified without a genuine verification provider.
             </p>
-          )}
-          <label className="block text-sm">
-            Enter OTP
+          </div>
+        )}
+
+        {status === "verified" && (
+          <div className="mt-4 rounded-lg bg-forest/10 border border-forest/20 p-3.5 text-xs text-forest leading-relaxed">
+            <p className="font-semibold">✓ Verified Traveler</p>
+            <p className="mt-1 text-[11px]">
+              Your identity has been verified through a genuine verification process. Your public profile displays the verified badge.
+            </p>
+          </div>
+        )}
+
+        {status === "rejected" && (
+          <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3.5 text-xs text-red-900 leading-relaxed">
+            <p className="font-semibold">✕ Verification Rejected</p>
+            <p className="mt-1 text-[11px]">
+              Your verification was not approved. Please contact support or submit a new request when official verification is available.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Verification Submission Form for unverified/rejected users */}
+      {(status === "unverified" || status === "rejected") && (
+        <form onSubmit={handleSubmitRequest} className="mt-6 rounded-xl border border-line bg-card p-5 space-y-4 text-xs">
+          <h2 className="text-sm font-semibold text-ink">Submit Verification Request</h2>
+          <p className="text-muted text-[11px]">
+            Prepare your identity profile for verification. Selecting a gender or uploading a photo does not automatically mark an account as verified.
+          </p>
+
+          <div>
+            <label className="block text-muted font-medium">Full Legal Name (as on official ID)</label>
             <input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="mt-1 w-full rounded-2xl border border-line bg-card px-4 py-3 tracking-[0.4em]"
-              inputMode="numeric"
+              type="text"
+              required
+              className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink outline-none focus:border-forest"
+              value={legalName}
+              onChange={(e) => setLegalName(e.target.value)}
+              placeholder="Full name as printed on ID"
             />
+          </div>
+
+          <div>
+            <label className="block text-muted font-medium">Preferred Identity Provider</label>
+            <select
+              className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-ink outline-none focus:border-forest"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
+              <option value="digilocker">DigiLocker Digital ID (Coming Soon)</option>
+              <option value="passport">Passport Travel Verification (Coming Soon)</option>
+              <option value="driving_license">Government Driving License (Coming Soon)</option>
+            </select>
+            <p className="mt-1 text-[11px] text-muted">
+              Real identity documents and Aadhaar numbers will only be processed once secure third-party provider integration is active.
+            </p>
+          </div>
+
+          <label className="flex items-start gap-2 pt-1 text-[11px] text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5 rounded border-line text-forest focus:ring-forest"
+            />
+            <span>
+              I understand that identity verification requires authentic third-party verification and will remain in <strong>Pending</strong> status until verified through an official provider.
+            </span>
           </label>
-          {error && <p className="text-sm text-clay">{error}</p>}
+
+          {notice && (
+            <div className="rounded-lg bg-sand p-3 text-xs text-ink border border-line font-medium">
+              {notice}
+            </div>
+          )}
+
           <button
-            onClick={() => {
-              if (otp !== DEMO_OTP) {
-                setError("Incorrect demo OTP.");
-                return;
-              }
-              verifyCurrentUser();
-              setStep("done");
-            }}
-            className="btn-primary w-full rounded-xl py-3 font-semibold"
+            type="submit"
+            className="btn-primary w-full rounded-lg py-2.5 font-semibold text-xs transition-colors"
           >
-            Verify
+            Submit for Identity Verification
           </button>
-        </div>
+        </form>
       )}
 
-      {step === "done" && (
-        <div className="mt-10 rounded-[1.6rem] bg-card p-8 text-center tm-shadow">
-          <p className="text-5xl">✓</p>
-          <h2 className="mt-3 font-serif text-3xl">Identity Verified</h2>
-          <p className="mt-2 text-sm text-muted">Your public profile will only show a verification badge.</p>
-          <button
-            onClick={() => router.push(currentUser.compatibilityAnswers ? "/app" : "/quiz")}
-            className="btn-primary mt-6 w-full rounded-xl py-3 font-semibold"
-          >
-            Continue
-          </button>
-        </div>
-      )}
+      {/* Action Buttons */}
+      <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+        <button
+          type="button"
+          onClick={() => router.push(currentUser.compatibilityAnswers ? "/app" : "/quiz")}
+          className="btn-primary w-full sm:flex-1 rounded-lg py-2.5 font-semibold text-xs text-center"
+        >
+          {currentUser.compatibilityAnswers ? "Continue to Dashboard →" : "Continue to Compatibility Quiz →"}
+        </button>
+        <Link
+          href="/app/profile"
+          className="btn-secondary w-full sm:w-auto rounded-lg px-4 py-2.5 font-medium text-xs text-center"
+        >
+          View Profile
+        </Link>
+      </div>
     </main>
   );
 }

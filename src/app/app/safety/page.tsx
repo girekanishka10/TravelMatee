@@ -25,7 +25,16 @@ export default function SafetyPage() {
       <section className="mt-6 space-y-3">
         <div className="rounded-3xl bg-card p-4 tm-shadow">
           <h2 className="font-medium">Identity verification</h2>
-          <p className="text-sm text-muted">Status: {currentUser.verificationStatus === "verified" ? "✓ Verified (badge only)" : "Unverified"}</p>
+          <p className="text-sm text-muted">
+            Status:{" "}
+            {currentUser.verificationStatus === "verified"
+              ? "✓ Verified"
+              : currentUser.verificationStatus === "pending"
+              ? "⏳ Pending Verification"
+              : currentUser.verificationStatus === "rejected"
+              ? "✕ Verification Rejected"
+              : "Not verified"}
+          </p>
         </div>
         <div className="rounded-3xl bg-card p-4 tm-shadow">
           <h2 className="font-medium">Verified travel history</h2>

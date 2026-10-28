@@ -44,6 +44,7 @@ type Store = AppState & {
   signup: (input: Omit<User, "id" | "verificationStatus" | "previousTrips" | "completedTripIds" | "rating" | "completedTripCount" | "blockedUserIds" | "savedTripIds" | "reportedUserIds" | "bio">) => string | null;
   signupAsGuide: (input: Omit<Guide, "id" | "rating" | "verifiedTrips" | "answers">) => string | null;
   verifyCurrentUser: () => void;
+  submitVerificationRequest: () => { success: boolean; message: string };
   completeQuiz: (answers: CompatibilityAnswers) => void;
   updateProfile: (patch: Partial<User>) => void;
   addTravelPhotos: (photos: { url: string; caption?: string; destination?: string; tripDate?: string }[]) => void;
@@ -74,6 +75,7 @@ type Store = AppState & {
   respondJoin: (groupId: string, userId: string, accept: boolean) => void;
   respondGroupJoinRequest: (requestId: string, accept: boolean) => { success: boolean; message: string };
   removeMember: (groupId: string, userId: string) => void;
+  leaveGroup: (groupId: string) => { success: boolean; message: string };
   updateTrip: (tripId: string, patch: Partial<Trip>) => void;
   sendMessage: (groupId: string, message: string, type?: Message["type"], recipientId?: string) => void;
   getDmConversationId: (userA: string, userB: string) => string;
@@ -456,13 +458,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return null;
   }, [state.guides]);
 
-  const verifyCurrentUser = useCallback(() => {
-    if (!state.currentUserId) return;
+  const submitVerificationRequest = useCallback(() => {
+    if (!state.currentUserId) {
+      return { success: false, message: "Please log in first." };
+    }
     setState((s) => ({
       ...s,
-      users: s.users.map((u) => (u.id === s.currentUserId ? { ...u, verificationStatus: "verified" } : u)),
+      users: s.users.map((u) => (u.id === s.currentUserId ? { ...u, verificationStatus: "pending" } : u)),
     }));
+    return {
+      success: true,
+      message:
+        "Identity verification request submitted. Verification remains pending until genuine third-party verification is completed.",
+    };
   }, [state.currentUserId]);
+
+  const verifyCurrentUser = useCallback(() => {
+    // In accordance with verification security requirements, users cannot be automatically marked verified without a genuine verification provider.
+    // This transitions status to pending:
+    submitVerificationRequest();
+  }, [submitVerificationRequest]);
 
   const completeQuiz = useCallback((answers: CompatibilityAnswers) => {
     setState((s) => ({
@@ -498,11 +513,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...s,
         users: s.users.map((u) => {
           if (u.id !== s.currentUserId) return u;
+          // Protect immutable/restricted fields: users can only update their own profile and cannot bypass verification
+          const safePatch = { ...patch };
+          delete safePatch.id;
+          delete safePatch.email;
+          delete safePatch.verificationStatus;
+
           const updated: User = {
             ...u,
-            ...patch,
+            ...safePatch,
             id: u.id,
             email: u.email,
+            gender: patch.gender !== undefined ? patch.gender : u.gender,
+            verificationStatus: u.verificationStatus, // preserve genuine verification status
           };
           if (patch.compatibilityAnswers) {
             updated.compatibilityAnswers = {
@@ -967,6 +990,89 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }),
     }));
   }, []);
+
+  const leaveGroup = useCallback(
+    (groupId: string): { success: boolean; message: string } => {
+      const userId = state.currentUserId;
+      if (!userId) {
+        return { success: false, message: "Please log in to leave a group." };
+      }
+
+      const group = state.groups.find((g) => g.id === groupId);
+      if (!group) {
+        return { success: false, message: "Group not found." };
+      }
+
+      // Check if user is actually a member
+      if (!group.memberIds.includes(userId)) {
+        return { success: false, message: "You are not an active member of this group." };
+      }
+
+      const trip = state.trips.find((t) => t.id === group.tripId);
+      const isOwner = group.creatorId === userId;
+      const otherMembers = group.memberIds.filter((id) => id !== userId);
+
+      // Respect existing ownership rules
+      if (isOwner && otherMembers.length === 0) {
+        return {
+          success: false,
+          message:
+            "As the group creator and sole member, you cannot leave the group. You can cancel or manage the trip instead.",
+        };
+      }
+
+      const nextCreatorId = isOwner ? otherMembers[0] : group.creatorId;
+      const nextMemberIds = otherMembers;
+      const max = trip?.groupSize ?? 5;
+      const isFull = nextMemberIds.length >= max;
+
+      const leavingUser = state.users.find((u) => u.id === userId);
+      const leavingUserName = leavingUser?.name || "A traveler";
+      const nextCreatorUser = state.users.find((u) => u.id === nextCreatorId);
+      const nextCreatorName = nextCreatorUser?.name || "a member";
+
+      const systemMsgText = isOwner
+        ? `${leavingUserName} (Creator) left the group. Ownership was transferred to ${nextCreatorName}. (${nextMemberIds.length}/${max} members)`
+        : `${leavingUserName} left the group. (${nextMemberIds.length}/${max} members)`;
+
+      setState((s) => ({
+        ...s,
+        groups: s.groups.map((g) => {
+          if (g.id !== groupId) return g;
+          return {
+            ...g,
+            creatorId: nextCreatorId,
+            memberIds: nextMemberIds,
+            recruiting: isFull ? false : true,
+          };
+        }),
+        trips:
+          isOwner && trip
+            ? s.trips.map((t) => (t.id === trip.id ? { ...t, creatorId: nextCreatorId } : t))
+            : s.trips,
+        messages: [
+          ...s.messages,
+          {
+            id: uid("m"),
+            senderId: "system",
+            groupId,
+            conversationId: groupId,
+            message: systemMsgText,
+            timestamp: new Date().toISOString(),
+            type: "system" as const,
+          },
+        ],
+      }));
+
+      return {
+        success: true,
+        message: isOwner
+          ? `You have left the group. Group ownership was transferred to ${nextCreatorName}.`
+          : "You have left the group successfully.",
+      };
+    },
+    [state.currentUserId, state.groups, state.trips, state.users]
+  );
 
   const updateTrip = useCallback((tripId: string, patch: Partial<Trip>) => {
     setState((s) => ({
@@ -1480,6 +1586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     signup,
     signupAsGuide,
     verifyCurrentUser,
+    submitVerificationRequest,
     completeQuiz,
     updateProfile,
     addTravelPhotos,
@@ -1494,6 +1601,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     respondJoin,
     respondGroupJoinRequest,
     removeMember,
+    leaveGroup,
     updateTrip,
     sendMessage,
     getDmConversationId,

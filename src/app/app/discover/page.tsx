@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag } from "@/components/Ui";
 
 function DiscoverInner() {
   const params = useSearchParams();
@@ -74,8 +74,9 @@ function DiscoverInner() {
                 <div className="flex items-start gap-3.5">
                   <Avatar name={user.name} photo={user.profilePhoto} size="md" />
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-sm font-semibold text-ink">{user.name}</h2>
+                      {user.gender === "female" && <FemaleTag />}
                       <span className="text-xs text-muted">• {user.city}</span>
                       <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest">
                         {score.overall}% Match

@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Breakdown } from "@/components/Compatibility";
 import { ageFromDob } from "@/lib/format";
 import { useApp } from "@/lib/store";
-import { Avatar } from "@/components/Ui";
+import { Avatar, FemaleTag, VerificationBadge } from "@/components/Ui";
 
 export default function TravelerProfilePage() {
   const { userId } = useParams<{ userId: string }>();
@@ -57,16 +57,13 @@ export default function TravelerProfilePage() {
           <div className="flex items-start gap-4">
                   <Avatar name={user.name} photo={user.profilePhoto} size="xl" />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="font-serif text-2xl font-bold text-ink">{user.name}</h1>
-                {user.verificationStatus === "verified" && (
-                  <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest">
-                    ✓ Verified
-                  </span>
-                )}
+                {user.gender === "female" && <FemaleTag />}
+                <VerificationBadge status={user.verificationStatus} />
               </div>
               <p className="text-xs text-muted mt-0.5">
-                {ageFromDob(user.dateOfBirth)} yrs • 📍 {user.city}
+                {ageFromDob(user.dateOfBirth)} yrs {user.gender && user.gender !== "prefer-not-to-say" ? `• ${user.gender.charAt(0).toUpperCase() + user.gender.slice(1)} ` : ""}• 📍 {user.city}
               </p>
               <p className="text-xs text-muted">
                 ★ {avg} rating • {user.completedTripCount} completed trips

@@ -12,6 +12,60 @@ export function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function FemaleTag({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200/90 shadow-2xs ${className}`}
+      title="Female Traveler"
+    >
+      <span className="text-[12px] leading-none">♀</span> Female
+    </span>
+  );
+}
+
+export function VerificationBadge({
+  status,
+  className = "",
+}: {
+  status?: string;
+  className?: string;
+}) {
+  if (status === "verified") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full bg-forest/10 px-2 py-0.5 text-[11px] font-medium text-forest border border-forest/20 ${className}`}
+      >
+        ✓ Verified
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 ${className}`}
+      >
+        ⏳ Verification Pending
+      </span>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 border border-red-200 ${className}`}
+      >
+        ✕ Rejected
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full bg-sand px-2 py-0.5 text-[11px] font-medium text-muted border border-line ${className}`}
+    >
+      Not verified
+    </span>
+  );
+}
+
 export function VerifiedBadge() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-forest/10 px-2 py-0.5 text-xs font-medium text-forest">
